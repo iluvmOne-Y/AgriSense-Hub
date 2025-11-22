@@ -1,0 +1,38 @@
+{
+	"compilerOptions": {
+		"lib": ["es2022"],
+
+		/* Base Options */
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"target": "es2022",
+		"allowJs": true,
+		"resolveJsonModule": true,
+		"moduleDetection": "force",
+		"isolatedModules": true,
+
+		/* Strictness */
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+
+		/* For transpiling with TypeScript: */
+		"module": "NodeNext",
+		"rootDir": "src",
+		"outDir": "dist",
+		"sourceMap": true,
+
+		/* Path Aliases */
+		"paths": {
+			"root": ["./src"],
+			"Data/*": ["./src/Data/*"],
+			"Config/*": ["./src/Config/*"],
+			"Models/*": ["./src/Models/*"],
+			"Utility/*": ["./src/Utility/*"],
+			"Middleware/*": ["./src/Middleware/*"],
+			"Routes/*": ["./src/Routes/*"],
+			"Socket/*": ["./src/Socket/*"],
+			"Services/*": ["./src/Services/*"]
+		}
+	}
+}
