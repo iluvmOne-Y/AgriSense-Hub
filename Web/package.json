@@ -1,0 +1,33 @@
+{
+	"name": "agrisense-hub",
+	"version": "1.0.0",
+	"description": "A web application to improve agriculture management.",
+	"type": "module",
+	"scripts": {
+		"install:client": "cd src/client && npm install",
+		"install:server": "cd src/server && npm install",
+		"install:all": "npm-run-all --parallel install:client install:server",
+		"run:server": "cd src/server && npm run dev",
+		"run:client": "cd src/client && npm start",
+		"run:all": "npm-run-all --parallel run:server run:client",
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/PFCS-IOT/AgriSense-Hub.git"
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.39.1",
+		"cross-env": "^10.1.0",
+		"eslint": "^9.39.1",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-prettier": "^5.5.4",
+		"eslint-plugin-react": "^7.37.5",
+		"eslint-plugin-react-hooks": "^7.0.1",
+		"globals": "^16.5.0",
+		"npm-run-all": "^4.1.5",
+		"prettier": "^3.6.2",
+		"typescript": "^4.9.5",
+		"typescript-eslint": "^8.46.3"
+	}
+}

@@ -1,0 +1,15 @@
+{
+	"recommendations": [
+		"github.copilot",
+		"dbaeumer.vscode-eslint",
+		"esbenp.prettier-vscode",
+		"christian-kohler.npm-intellisense",
+		"biomejs.biome",
+		"ecmel.vscode-html-css",
+		"bradlc.vscode-tailwindcss",
+		"visualstudioexptteam.vscodeintellicode",
+		"visualstudioexptteam.intellicode-api-usage-examples",
+		"george-alisson.html-preview-vscode",
+		"compulim.vscode-express"
+	]
+}
