@@ -4,11 +4,11 @@
 	"description": "A web application to improve agriculture management.",
 	"type": "module",
 	"scripts": {
-		"install:client": "cd src/client && npm install",
-		"install:server": "cd src/server && npm install",
+		"install:client": "cd src/client && npm install && npm audit fix",
+		"install:server": "cd src/server && npm install && npm audit fix",
 		"install:all": "npm-run-all --parallel install:client install:server",
-		"run:server": "cd src/server && npm run dev",
-		"run:client": "cd src/client && npm start",
+		"run:server": "cd src/server && npm run start",
+		"run:client": "cd src/client && npm run dev",
 		"run:all": "npm-run-all --parallel run:server run:client",
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
