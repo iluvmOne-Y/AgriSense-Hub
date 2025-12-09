@@ -1,0 +1,14 @@
+/* This is for language server to not showing errors in shared code. */
+{
+    "compilerOptions": {
+        /* Path Aliases */
+        "paths": {
+            "Shared/*": ["./src/*"]
+        }
+    },
+    "include": ["./src/**/*"],
+    "references": [
+        { "path": "./tsconfig.client.json" },
+        { "path": "./tsconfig.server.json" }
+    ]
+}
