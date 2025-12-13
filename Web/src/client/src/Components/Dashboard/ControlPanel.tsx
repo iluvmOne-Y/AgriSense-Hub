@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { usePlant } from 'Client/Contexts/Plant/index.js'
+import { useSensor } from 'Client/Contexts/Sensor/index.js'
 
 /**
  * ControlPanel component to manage plant profile, auto mode, and pump control.
@@ -17,14 +17,14 @@ const ControlPanel: React.FC = () => {
 		onPlantChange,
 		onAutoToggle,
 		onPumpToggle,
-	} = usePlant()
+	} = useSensor()
 
 	return (
 		<div className="panel control-panel">
 			<h2>Controls & Configuration</h2>
 
 			<div className="control-group">
-				<label>Plant Profile</label>
+				<label htmlFor="plant-select">Plant Profile</label>
 				<select
 					className="control-select"
 					value={selectedPlant || ''}
@@ -66,7 +66,7 @@ const ControlPanel: React.FC = () => {
 						border: '1px solid #eee',
 					}}
 				>
-					<strong>Active Safe Thresholds:</strong>
+					<b>Active Safe Thresholds:</b>
 					<div
 						style={{
 							display: 'grid',
