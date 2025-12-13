@@ -173,7 +173,8 @@ export const iotHandler = async (socket: Socket, io: Server) => {
 			// Acknowledge command receipt
 			socket.emit('command_ack', {
 				success: true,
-				message: 'Pump command sent successfully',
+				message:
+					'Pump command sent successfully. Please wait for device update...',
 			})
 		} catch (err) {
 			console.error(
@@ -230,7 +231,8 @@ export const iotHandler = async (socket: Socket, io: Server) => {
 			// Acknowledge command receipt
 			socket.emit('command_ack', {
 				success: true,
-				message: 'Auto Mode update sent successfully',
+				message:
+					'Auto Mode update sent successfully. Please wait for device update...',
 			})
 		} catch (err) {
 			console.error(
