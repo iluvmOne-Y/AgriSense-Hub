@@ -6,12 +6,13 @@ import type { PageContextValueType } from './index.js'
  * Default values for the PageContext.
  */
 export const DEFAULT: PageContextValueType = {
-    pageState: {
-        title: 'Smart Farm',
-        loading: false,
-        notifications: [],
-    },
-    dispatch: () => null,
+	pageState: {
+		title: 'Smart Farm',
+		loading: false,
+		notifications: [],
+	},
+	dispatch: () => null,
+	notify: () => null,
 }
 
 /**
