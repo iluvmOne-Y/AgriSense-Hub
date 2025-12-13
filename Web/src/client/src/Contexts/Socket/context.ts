@@ -6,9 +6,11 @@ import type { SocketContextValueType } from './index.js'
  * Default values for the SocketContext.
  */
 export const DEFAULT: SocketContextValueType = {
-    socket: null,
-    connect: () => {},
-    disconnect: () => {},
+	socket: null,
+	connected: false,
+
+	connect: () => {},
+	disconnect: () => {},
 }
 
 /**

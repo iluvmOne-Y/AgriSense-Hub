@@ -5,16 +5,19 @@ import SocketProvider from './provider.js'
 import useSocket from './hook.js'
 
 /**
- * Type definition for the Socket context value.
+ * Interface defining the Socket Context State and Actions.
  *
- * @property socket - The current WebSocket connection or null.
- * @property connect - Function to establish a WebSocket connection.
- * @property disconnect - Function to close the WebSocket connection.
+ * @property {Socket | null} socket - The active Socket.io instance.
+ * @property {boolean} connected - True if the socket is currently connected to the server.
+ * @property {() => void} connect - Function to manually initiate connection (usually handled automatically).
+ * @property {() => void} disconnect - Function to manually close the connection.
  */
 export type SocketContextValueType = {
-    socket: Socket | null
-    connect: () => void
-    disconnect: () => void
+	socket: Socket | null
+	connected: boolean
+
+	connect: () => void
+	disconnect: () => void
 }
 
 export { SocketContext, SocketProvider, useSocket }

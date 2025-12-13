@@ -1,53 +1,92 @@
 import io, { Socket } from 'socket.io-client'
-import React, { useState, createElement } from 'react'
-import type { ReactNode } from 'react'
+import React, {
+	useRef,
+	useState,
+	useCallback,
+	useEffect,
+	createElement,
+	type ReactNode,
+} from 'react'
 
 import { SOCKET_URL } from 'Client/Data/Constants.js'
 import SocketContext from './context.js'
+import { useAuth } from 'Client/Contexts/Authentication/index.js'
 
 /**
  * Provider for the SocketContext.
  *
- * @param children - The child components that will have access to the SocketContext.
+ * @param props - Props containing child components to wrap.
  * @return The SocketContext provider component.
  */
 const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-	const [socket, setSocket] = useState(null as Socket | null)
+	const { isAuthenticated } = useAuth()
+	const token = useRef(localStorage.getItem('token'))
+
+	const socket = useRef<Socket | null>(null)
+	const [connected, setConnected] = useState(false)
+
+	// Update token ref on authentication state changes
+	useEffect(() => {
+		token.current = localStorage.getItem('token')
+	}, [isAuthenticated])
+
+	// Manage socket connection based on authentication state
+	useEffect(() => {
+		if (isAuthenticated) {
+			connect()
+		} else {
+			disconnect()
+		}
+	}, [isAuthenticated])
 
 	/**
-	 * Connects to the WebSocket server using the token stored in localStorage.
+	 * Establishes a new socket connection using the current JWT token.
 	 */
-	const connect = () => {
-		if (socket) return // Already connected
+	const connect = useCallback(() => {
+		// Prevent multiple connections or connecting without a token
+		if (socket.current?.connected || !token.current) return
 
-		const token = localStorage.getItem('token')
-		const sk = io(SOCKET_URL, {
-			autoConnect: false,
+		// Initialize socket client
+		socket.current = io(SOCKET_URL, {
+			auth: { token: `Bearer ${token.current}` },
+			transports: ['websocket'],
+			reconnection: true,
+			reconnectionAttempts: 5,
 		})
 
-		// Only connect if a token is available
-		if (token) {
-			sk.auth = { token }
-			sk.connect()
-			setSocket(sk)
-		}
-	}
+		// Setup Event Listeners
+		socket.current.on('connect', () => {
+			console.log('Socket Connected:', socket.current?.id)
+			setConnected(true)
+		})
+
+		socket.current.on('disconnect', () => {
+			console.log('Socket Disconnected')
+			setConnected(false)
+		})
+
+		socket.current.on('connect_error', (err) => {
+			console.error('Socket Connection Error:', err)
+		})
+	}, [])
 
 	/**
-	 * Disconnects from the WebSocket server.
+	 * Disconnects the socket if it is active.
 	 */
-	const disconnect = () => {
-		if (socket) {
-			socket.close()
-			setSocket(null)
+	const disconnect = useCallback(() => {
+		if (socket.current) {
+			socket.current.disconnect()
+			socket.current = null
+			setConnected(false)
 		}
-	}
+	}, [])
 
 	return createElement(
 		SocketContext.Provider,
 		{
 			value: {
-				socket,
+				socket: socket.current,
+				connected,
 				connect,
 				disconnect,
 			},
