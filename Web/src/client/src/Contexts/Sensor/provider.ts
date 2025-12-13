@@ -9,21 +9,20 @@ import type {
 	SafeThresholds,
 	PlantProfileType,
 } from 'Shared/Data/Types/index.js'
-import { PageAction } from 'Client/Data/Constants.js'
 import { usePage } from 'Client/Contexts/Page/index.js'
 import { useSocket } from 'Client/Contexts/Socket/index.js'
 
-import PlantContext from './context.js'
+import SensorContext from './context.js'
 
 /**
- * Provider for the Plant context.
- * Manages state for plant profiles, automation, and device controls via Socket.io.
+ * Provider for the Sensor context.
+ * Manages state for plant profiles, automation, and device controls via socket.
  *
- * @param children - The child components that will have access to the PlantContext.
- * @return The Plant context provider component.
+ * @param children - The child components that will have access to the SensorContext.
+ * @return The Sensor context provider component.
  */
-const PlantProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-	const { dispatch } = usePage()
+const SensorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+	const { dispatch, notify } = usePage()
 	const { socket } = useSocket()
 
 	// State for plant profiles and automation
@@ -96,11 +95,15 @@ const PlantProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 		socket.on(
 			'system_state',
 			(data: {
-				state: boolean
+				state: {
+					pump: boolean
+					automode: boolean
+				}
 				currentPlantType?: string
 				currentPlantProfile?: PlantProfileType
 			}) => {
-				setIsAutoMode(data.state)
+				setIsPumpActive(data.state.pump)
+				setIsAutoMode(data.state.automode)
 
 				if (data.currentPlantType && data.currentPlantProfile) {
 					setSelectedPlant(data.currentPlantType)
@@ -131,14 +134,8 @@ const PlantProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 				setSelectedPlant(data.plantType)
 				setThresholds(data.thresholds)
 
-				dispatch({
-					type: PageAction.AddNotification,
-					payload: {
-						id: `plant-${Date.now()}`,
-						message: `Profile loaded: ${data.plantType}`,
-						type: 'success',
-					},
-				})
+				// Notify user of plant profile change
+				notify('success', `Profile loaded: ${data.plantType}`, 5)
 			}
 		)
 
@@ -147,14 +144,9 @@ const PlantProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 			'command_ack',
 			(res: { success: boolean; message: string }) => {
 				if (!res.success) {
-					dispatch({
-						type: PageAction.AddNotification,
-						payload: {
-							id: `err-${Date.now()}`,
-							message: res.message,
-							type: 'error',
-						},
-					})
+					notify('error', res.message, 5)
+				} else {
+					notify('info', res.message, 5)
 				}
 			}
 		)
@@ -206,7 +198,7 @@ const PlantProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 	)
 
 	return createElement(
-		PlantContext.Provider,
+		SensorContext.Provider,
 		{
 			value: {
 				selectedPlant,
@@ -227,4 +219,4 @@ const PlantProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 	)
 }
 
-export default PlantProvider
+export default SensorProvider

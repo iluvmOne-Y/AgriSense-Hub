@@ -6,12 +6,12 @@ import type {
 	SensorRecordType,
 } from 'Shared/Data/Types/index.js'
 
-import PlantContext from './context.js'
-import PlantProvider from './provider.js'
-import usePlant from './hook.js'
+import SensorContext from './context.js'
+import SensorProvider from './provider.js'
+import useSensor from './hook.js'
 
 /**
- * Type definition for the Plant context value.
+ * Type definition for the Sensor context value.
  *
  * @property selectedPlant - The currently selected plant type.
  * @property availablePlants - List of available plants with their IDs and types.
@@ -24,7 +24,7 @@ import usePlant from './hook.js'
  * @property onAutoToggle - Handler for toggling automatic mode.
  * @property onPumpToggle - Handler for toggling the water pump state.
  */
-export type PlantContextValueType = {
+export type SensorContextValueType = {
 	selectedPlant: string | null
 	availablePlants: string[]
 	isAutoMode: boolean
@@ -39,4 +39,4 @@ export type PlantContextValueType = {
 	onPumpToggle: () => void
 }
 
-export { PlantContext, PlantProvider, usePlant }
+export { SensorContext, SensorProvider, useSensor }
