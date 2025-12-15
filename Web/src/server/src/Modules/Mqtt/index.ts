@@ -180,6 +180,21 @@ export const initMqtt = (io: Server) => {
 		/*Task4 - HUY QUANG TRUONG*/
 
 		startWeatherForecastScheduler() /*Task2 - HUY QUANG TRUONG*/
+
+		/*Task1 - HUY QUANG TRUONG*/
+		console.log(
+			chalk.cyan('Starting Pump Decision Scheduler (Every 30s)...')
+		)
+
+		setInterval(() => {
+			evaluateAndPublishPumpDecision().catch((err) => {
+				console.error(
+					`${chalk.red('✗ Server: Scheduled Pump Evaluation Error:')}`,
+					err
+				)
+			})
+		}, 16000)
+		/*Task1 - HUY QUANG TRUONG*/
 	})
 
 	// Handle incoming MQTT messages
@@ -187,10 +202,7 @@ export const initMqtt = (io: Server) => {
 		if (!topic || !message) return // Ignore invalid topics or messages
 
 		try {
-			/* 
-               Task4 - HUY QUANG TRUONG 
-               Only save the database and process the pumping logic when receiving it from this topic.
-            */
+			/* Task4 - HUY QUANG TRUONG */
 			if (topic === topicSensorData) {
 				const parsedData = JSON.parse(message.toString()) as {
 					temp: number
@@ -229,15 +241,6 @@ export const initMqtt = (io: Server) => {
 					)
 				}
 
-				/*Task1 - HUY QUANG TRUONG*/
-				// Evaluate pump decision based on last 5 moisture samples
-				await evaluateAndPublishPumpDecision().catch((err) => {
-					console.error(
-						`${chalk.red('✗ Server: Pump Evaluation Error:')}`,
-						err
-					)
-				})
-
 				// Check sensor data and notify users if needed
 				await checkAndNotify(sensorData)
 
@@ -246,8 +249,8 @@ export const initMqtt = (io: Server) => {
 					sensorData: sensorData,
 				})
 
-				return // End
-				/*Task1 - HUY QUANG TRUONG*/
+				return
+				/* Task4 - HUY QUANG TRUONG */
 			}
 
 			const parsedMessage = JSON.parse(message.toString())
