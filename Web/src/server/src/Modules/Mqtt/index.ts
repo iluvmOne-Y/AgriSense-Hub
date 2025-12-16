@@ -190,10 +190,10 @@ export const initMqtt = (io: Server) => {
 				// Broadcast sensor data to websocket clients
 				broadcastSensorData(io, sensorUpdate)
 			} else if (parsedMessage.hasOwnProperty('enable')) {
-				const pumpStateUpdate = parsedMessage as DeviceStateUpdate
+				const deviceStateUpdate = parsedMessage as DeviceStateUpdate
 
-				// Broadcast pump state update to websocket clients
-				broadcastDeviceStateUpdate(io, pumpStateUpdate)
+				// Broadcast device state update to websocket clients
+				broadcastDeviceStateUpdate(io, deviceStateUpdate)
 			}
 		} catch (err) {
 			console.error(

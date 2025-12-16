@@ -347,7 +347,7 @@ export const broadcastSensorData = (io: Server, data: SensorUpdate) => {
 }
 
 /**
- * Broadcast pump state update to all connected clients
+ * Broadcast device state update to all connected clients
  *
  * @param io - The Socket.io server instance
  * @param data - The device state update to broadcast
