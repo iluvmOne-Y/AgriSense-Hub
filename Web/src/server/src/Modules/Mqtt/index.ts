@@ -15,6 +15,7 @@ import {
 	broadcastSensorData,
 	broadcastDeviceStateUpdate,
 	PlantManager,
+	evaluateAndPublishPumpDecision,
 } from './Handler.js'
 import NotificationService from 'Server/Services/NotificationService/index.js'
 
@@ -165,7 +166,7 @@ export const initMqtt = (io: Server) => {
 
 		// TASK 1 - HUY QUANG TRUONG
 		console.log(
-			chalk.cyan('Starting Pump Decision Scheduler (Every 30s)...')
+			chalk.cyan('Starting Pump Decision Scheduler (Every 10s)...')
 		)
 		setInterval(() => {
 			evaluateAndPublishPumpDecision().catch((err) => {
@@ -174,7 +175,7 @@ export const initMqtt = (io: Server) => {
 					err
 				)
 			})
-		}, 30000)
+		}, 10000)
 		// TASK 1 -  HUY QUANG TRUONG
 	})
 
@@ -253,102 +254,102 @@ export const publishToDevice = (command: string) => {
 
 export default null
 
-//TASK 1 -  HUY QUANG TRUONG
-export const evaluateAndPublishPumpDecision = async () => {
-	try {
-		//  Get latest 5 sensor records
-		const records = (await SensorRecord.find()
-			.sort({ timestamp: -1 })
-			.limit(5)
-			.lean()
-			.exec()) as any[]
+// //TASK 1 -  HUY QUANG TRUONG
+// export const evaluateAndPublishPumpDecision = async () => {
+// 	try {
+// 		//  Get latest 5 sensor records
+// 		const records = (await SensorRecord.find()
+// 			.sort({ timestamp: -1 })
+// 			.limit(5)
+// 			.lean()
+// 			.exec()) as any[]
 
-		// check empty records -> return
-		if (!records || records.length === 0) {
-			console.log('No sensor records found. Defaulting to NO pump.')
-			publishToDevice(JSON.stringify({ action: 'PUMP', enable: false }))
-			return
-		}
+// 		// check empty records -> return
+// 		if (!records || records.length === 0) {
+// 			console.log('No sensor records found. Defaulting to NO pump.')
+// 			publishToDevice(JSON.stringify({ action: 'PUMP', enable: false }))
+// 			return
+// 		}
 
-		// fillter
-		const validRecords = records.filter(
-			(r) =>
-				r &&
-				r.data &&
-				typeof r.data.moisture === 'number' &&
-				typeof r.data.temperature === 'number' &&
-				typeof r.data.humidity === 'number'
-		)
+// 		// fillter
+// 		const validRecords = records.filter(
+// 			(r) =>
+// 				r &&
+// 				r.data &&
+// 				typeof r.data.moisture === 'number' &&
+// 				typeof r.data.temperature === 'number' &&
+// 				typeof r.data.humidity === 'number'
+// 		)
 
-		if (validRecords.length === 0) return
+// 		if (validRecords.length === 0) return
 
-		// avg
-		const sumM = validRecords.reduce((a, b) => a + b.data.moisture, 0)
-		const sumT = validRecords.reduce((a, b) => a + b.data.temperature, 0)
-		const sumH = validRecords.reduce((a, b) => a + b.data.humidity, 0)
+// 		// avg
+// 		const sumM = validRecords.reduce((a, b) => a + b.data.moisture, 0)
+// 		const sumT = validRecords.reduce((a, b) => a + b.data.temperature, 0)
+// 		const sumH = validRecords.reduce((a, b) => a + b.data.humidity, 0)
 
-		const avgMoisture = sumM / validRecords.length
-		const avgTemp = sumT / validRecords.length
-		const avgHum = sumH / validRecords.length
-		const latestMoisture = validRecords[0].data.moisture
+// 		const avgMoisture = sumM / validRecords.length
+// 		const avgTemp = sumT / validRecords.length
+// 		const avgHum = sumH / validRecords.length
+// 		const latestMoisture = validRecords[0].data.moisture
 
-		console.log(
-			chalk.cyan(
-				`[Task 1 Analysis] AvgM:${avgMoisture.toFixed(1)}%, AvgT:${avgTemp.toFixed(1)}C | LatestM:${latestMoisture}%`
-			)
-		)
+// 		console.log(
+// 			chalk.cyan(
+// 				`[Task 1 Analysis] AvgM:${avgMoisture.toFixed(1)}%, AvgT:${avgTemp.toFixed(1)}C | LatestM:${latestMoisture}%`
+// 			)
+// 		)
 
-		let moistureThreshold = 40 // auto threshold
+// 		let moistureThreshold = 40 // auto threshold
 
-		if (avgTemp > 30 && avgHum < 60) {
-			moistureThreshold = 50
-			console.log(
-				chalk.yellow(
-					'-> Condition: Hot & Dry -> Raised threshold to 50%'
-				)
-			)
-		} else if (avgTemp < 20 || avgHum > 85) {
-			moistureThreshold = 30
-			console.log(
-				chalk.cyan('-> Condition: Cold/Wet -> Lowered threshold to 30%')
-			)
-		}
+// 		if (avgTemp > 30 && avgHum < 60) {
+// 			moistureThreshold = 50
+// 			console.log(
+// 				chalk.yellow(
+// 					'-> Condition: Hot & Dry -> Raised threshold to 50%'
+// 				)
+// 			)
+// 		} else if (avgTemp < 20 || avgHum > 85) {
+// 			moistureThreshold = 30
+// 			console.log(
+// 				chalk.cyan('-> Condition: Cold/Wet -> Lowered threshold to 30%')
+// 			)
+// 		}
 
-		const SAFETY_UPPER_LIMIT = 70
+// 		const SAFETY_UPPER_LIMIT = 70
 
-		// Decision Making
-		let shouldPump = false
+// 		// Decision Making
+// 		let shouldPump = false
 
-		if (latestMoisture >= SAFETY_UPPER_LIMIT) {
-			shouldPump = false
-			console.log(
-				chalk.magenta(
-					`-> Safety Cut-off: Latest moisture (${latestMoisture}%) is high.`
-				)
-			)
-		} else if (avgMoisture <= moistureThreshold) {
-			shouldPump = true
-			console.log(
-				chalk.green(
-					`-> Decision: PUMP ON (Avg Moisture ${avgMoisture.toFixed(1)}% <= ${moistureThreshold}%)`
-				)
-			)
-		} else {
-			shouldPump = false
-			console.log(chalk.gray(`-> Decision: PUMP OFF`))
-		}
+// 		if (latestMoisture >= SAFETY_UPPER_LIMIT) {
+// 			shouldPump = false
+// 			console.log(
+// 				chalk.magenta(
+// 					`-> Safety Cut-off: Latest moisture (${latestMoisture}%) is high.`
+// 				)
+// 			)
+// 		} else if (avgMoisture <= moistureThreshold) {
+// 			shouldPump = true
+// 			console.log(
+// 				chalk.green(
+// 					`-> Decision: PUMP ON (Avg Moisture ${avgMoisture.toFixed(1)}% <= ${moistureThreshold}%)`
+// 				)
+// 			)
+// 		} else {
+// 			shouldPump = false
+// 			console.log(chalk.gray(`-> Decision: PUMP OFF`))
+// 		}
 
-		// Publish command
-		const payload = JSON.stringify({
-			action: 'PUMP',
-			enable: shouldPump,
-		})
-		publishToDevice(payload)
-	} catch (err) {
-		console.error(
-			`${chalk.red('✗ Server: evaluateAndPublishPumpDecision error:')}`,
-			err
-		)
-	}
-}
-//TASK 1 - HUY QUANG TRUONG
+// 		// Publish command
+// 		const payload = JSON.stringify({
+// 			action: 'PUMP',
+// 			enable: shouldPump,
+// 		})
+// 		publishToDevice(payload)
+// 	} catch (err) {
+// 		console.error(
+// 			`${chalk.red('✗ Server: evaluateAndPublishPumpDecision error:')}`,
+// 			err
+// 		)
+// 	}
+// }
+// //TASK 1 - HUY QUANG TRUONG

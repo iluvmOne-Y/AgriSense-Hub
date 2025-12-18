@@ -367,3 +367,42 @@ export const broadcastDeviceStateUpdate = (
 			)
 	}
 }
+
+//TASK 1 -  HUY QUANG TRUONG
+export const evaluateAndPublishPumpDecision = async () => {
+	const sensor = PlantManager.latestSensorRecords.at(-1)?.data
+	const profile = PlantManager.currentPlantProfile?.safeThresholds
+
+	if (!sensor || !profile) return
+
+	// get thresholds from plant profile
+	let lowerThreshold = profile.moisture.lower
+	const upperThreshold = profile.moisture.upper
+
+	const isStressful =
+		sensor.temperature > profile.temperature.upper ||
+		sensor.humidity < profile.humidity.lower
+
+	if (isStressful) {
+		lowerThreshold += 10
+	}
+
+	let shouldPump = PlantManager.state.pumpActive
+
+	if (sensor.moisture <= lowerThreshold) {
+		shouldPump = true
+	} else if (sensor.moisture >= upperThreshold) {
+		shouldPump = false
+	}
+
+	if (shouldPump !== PlantManager.state.pumpActive) {
+		PlantManager.state.pumpActive = shouldPump
+		publishToDevice(
+			JSON.stringify({ action: IoTAction.Pump, enable: shouldPump })
+		)
+		console.log(
+			`[Auto] Pump: ${shouldPump ? 'ON' : 'OFF'} (M:${sensor.moisture}% | Range: ${lowerThreshold.toFixed(1)}% - ${upperThreshold}%)` //
+		)
+	}
+}
+//TASK 1 - HUY QUANG TRUONG
