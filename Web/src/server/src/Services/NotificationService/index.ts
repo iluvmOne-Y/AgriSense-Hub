@@ -1,7 +1,6 @@
-import SmsService from './Sms/index.js'
 import MailService from './Mail/index.js'
-
+import {sendTelegramAlert  } from './telegramNotify/index.js';
 export default {
-	SmsService,
+	sendTelegramAlert,
 	MailService,
 }

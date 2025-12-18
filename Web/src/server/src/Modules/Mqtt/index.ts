@@ -23,6 +23,7 @@ import {
 	initWeatherService,
 	startWeatherForecastScheduler,
 } from 'Server/Services/Weather/WeatherService.js'
+import GetSmsTemplate from 'Server/Services/NotificationService/telegramNotify/Template.js'
 
 /* MQTT Client Setup */
 const MQTT_CONFIG: IClientOptions = {
@@ -93,15 +94,15 @@ const checkAndNotify = async (sensorData: SensorData) => {
 			const users = await User.find().lean().exec()
 
 			// Prepare notify msg
-			// const smsMessage = GetSmsTemplate('alert', {
-			// 	warnings,
-			// 	sensorData,
-			// })
+			const smsMessage = GetSmsTemplate('alert', {
+				warnings,
+				sensorData,
+			})
 
-			// //send notify via telegram
-			// if (smsMessage) {
-			// 	NotificationService.sendTelegramAlert(smsMessage)
-			// }
+			//send notify via telegram
+			if (smsMessage) {
+				NotificationService.sendTelegramAlert(smsMessage)
+			}
 
 			// // Notify all users via Email
 			// for (const user of users) {
@@ -210,6 +211,8 @@ export const initMqtt = (io: Server) => {
 
 				// Broadcast sensor data to websocket clients
 				broadcastSensorData(io, sensorUpdate)
+
+				// check update state
 			} else if (parsedMessage.hasOwnProperty('enable')) {
 				const deviceStateUpdate = parsedMessage as DeviceStateUpdate
 

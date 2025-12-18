@@ -29,4 +29,8 @@ export default {
     textbee: {
         apiKey: process.env.TEXTBEE_API_KEY as string, // Text-Bee API key
     },
+    telegram: {
+        botToken: process.env.TELEGRAM_BOT_TOKEN as string, // Telegram Bot Token
+        chatId: process.env.TELEGRAM_CHAT_ID as string, // Telegram Chat ID
+    },
 }

@@ -1,0 +1,1079 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -608,
+        -160
+      ],
+      "id": "9ca2055e-decd-4f00-8c5d-92d2701ea028",
+      "name": "Telegram Trigger",
+      "webhookId": "9398adb5-e991-4f05-95a1-dd4c61706f50",
+      "credentials": {
+        "telegramApi": {
+          "id": "0VV7Vfyjasp6Kj67",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Telegram Trigger').item.json.message.text }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -752,
+        352
+      ],
+      "id": "63c0a2b1-7c33-4b06-9809-7cbf2818642a",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -768,
+        560
+      ],
+      "id": "1c5d22a6-6281-425f-94d0-a7f8cd5ab642",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "C053WQ1WyGAK0wDn",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -384,
+        368
+      ],
+      "id": "933eab7f-f686-4a8c-8cc4-4b87d38bb2ec",
+      "name": "Send a text message",
+      "webhookId": "88dad489-4d33-40d5-a574-aa94b37ee561",
+      "credentials": {
+        "telegramApi": {
+          "id": "0VV7Vfyjasp6Kj67",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendChatAction",
+        "chatId": "={{ $json.message.chat.id }}"
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -960,
+        352
+      ],
+      "id": "715e9d1b-0f08-4a91-84f8-af36290d7b04",
+      "name": "Send a chat action",
+      "webhookId": "59c74e7a-40fa-4c0f-bd7d-60e8b160e6b8",
+      "credentials": {
+        "telegramApi": {
+          "id": "0VV7Vfyjasp6Kj67",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -592,
+        592
+      ],
+      "id": "fb6bb8d2-dabc-4de7-b327-46e12e0c80a1",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "/data",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "0052bb4d-72c1-4f5b-990c-be8bb8368761"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "6e87d154-2dd7-478a-91cd-fbb38dd23d96",
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "/start",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e6c0e5dc-0940-4325-bb81-e38dfdad7c1d",
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "/pumpON",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b3d1bfab-ecf0-479f-b76d-f0d7cfc929cc",
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "/toogleAutomodeON",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "16977b95-6e58-47c5-9214-01b327c79a40",
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "/pumpOFF",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "51c528cb-ae91-404d-a7ff-4624a5de64a1",
+                    "leftValue": "={{ $json.message.text }}",
+                    "rightValue": "/toogleAutomodeOFF",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -272,
+        -224
+      ],
+      "id": "1b032c45-011a-4021-ab5c-c86f4c85c4dc",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "topic": "devices/smartfarmdevice001/commands",
+        "sendInputData": false,
+        "message": "{\"action\": \"GET_DATA\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mqtt",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        -720
+      ],
+      "id": "50be148a-d3e0-4a86-b5c5-0c86d3520fd6",
+      "name": "MQTT",
+      "credentials": {
+        "mqtt": {
+          "id": "NCHqUOWXoPAeuEGO",
+          "name": "MQTT account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "topics": "devices/smartfarmdevice001/data_for_telegram",
+        "options": {
+          "jsonParseBody": true
+        }
+      },
+      "type": "n8n-nodes-base.mqttTrigger",
+      "typeVersion": 1,
+      "position": [
+        144,
+        -720
+      ],
+      "id": "f9109096-bbe0-4ca9-a262-2e76cddf98f6",
+      "name": "MQTT Trigger",
+      "credentials": {
+        "mqtt": {
+          "id": "NCHqUOWXoPAeuEGO",
+          "name": "MQTT account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "=5562565165",
+        "text": "=🌡 **Temp:**{{ $json.message.sensorData.temperature }} °C \n💧 **Humidity:**{{ $json.message.sensorData.humidity }} %\n🌱 **Soil:**{{ $json.message.sensorData.moisture }} %",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        496,
+        -736
+      ],
+      "id": "95b471f2-b5d0-459d-a708-ef1a712b017c",
+      "name": "Send a text message1",
+      "webhookId": "e553d6a0-3498-419b-978b-889ff3db267f",
+      "credentials": {
+        "telegramApi": {
+          "id": "0VV7Vfyjasp6Kj67",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "5562565165",
+        "text": "🌾 Chào mừng bạn đến với AgriHub - Trợ lý Nông nghiệp Thông minh! 🤖\n\nXin chào! Tôi là trợ lý ảo được thiết kế riêng cho hệ thống vườn thông minh của bạn. Tôi ở đây để giúp bạn giám sát môi trường, điều khiển thiết bị và giải đáp mọi thắc mắc về nông nghiệp.\n\nDưới đây là danh sách các lệnh điều khiển:\n\n📊 1. Giám sát Môi trường Gõ lệnh: /data 👉 Xem ngay lập tức các thông số: Nhiệt độ, Độ ẩm không khí và Độ ẩm đất.\n\n💦 2. Điều khiển Máy Bơm Điều khiển tưới nước thủ công ngay lập tức: • Bật máy bơm: /pumpON • Tắt máy bơm: /pumpOFF\n\n⚙️ 3. Cấu hình Chế độ Tự động Quản lý chế độ tưới thông minh dựa trên cảm biến: • Kích hoạt tự động: /toogleAutomodeON • Tắt tự động: /toogleAutomodeOFF\n\n🧠 4. Trò chuyện cùng AI 👉 Tôi được tích hợp trí tuệ nhân tạo (LLM). Bạn có thể hỏi tôi bất kỳ điều gì, ví dụ: \"Cây cà chua cần độ ẩm bao nhiêu?\", tôi sẽ giải đáp giúp bạn!",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        32,
+        -560
+      ],
+      "id": "9b31f41b-5d8f-4684-ba03-289f44da588a",
+      "name": "Send a text message2",
+      "webhookId": "20cdae1b-7958-49bd-b7bf-ed8a1b36ea2e",
+      "credentials": {
+        "telegramApi": {
+          "id": "0VV7Vfyjasp6Kj67",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "topic": "devices/smartfarmdevice001/commands",
+        "sendInputData": false,
+        "message": "{\"action\":\"TOGGLE_AUTO\",\"value\":true}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mqtt",
+      "typeVersion": 1,
+      "position": [
+        32,
+        -144
+      ],
+      "id": "29756c66-9ab0-4db6-9609-c229499f60ee",
+      "name": "MQTT1",
+      "credentials": {
+        "mqtt": {
+          "id": "NCHqUOWXoPAeuEGO",
+          "name": "MQTT account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "topic": "devices/smartfarmdevice001/commands",
+        "sendInputData": false,
+        "message": "{\"action\":\"TOGGLE_AUTO\",\"value\":false}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mqtt",
+      "typeVersion": 1,
+      "position": [
+        64,
+        448
+      ],
+      "id": "0c709152-8e17-4f1d-9ece-46b725ac6b8a",
+      "name": "MQTT2",
+      "credentials": {
+        "mqtt": {
+          "id": "NCHqUOWXoPAeuEGO",
+          "name": "MQTT account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "topic": "devices/smartfarmdevice001/commands",
+        "sendInputData": false,
+        "message": "{\"action\":\"PUMP\",\"enable\":true}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mqtt",
+      "typeVersion": 1,
+      "position": [
+        32,
+        -368
+      ],
+      "id": "0669a95a-e8cb-42b7-8599-88ee905768b7",
+      "name": "MQTT3",
+      "credentials": {
+        "mqtt": {
+          "id": "NCHqUOWXoPAeuEGO",
+          "name": "MQTT account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "topic": "devices/smartfarmdevice001/commands",
+        "sendInputData": false,
+        "message": "{\"action\":\"PUMP\",\"enable\":false}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mqtt",
+      "typeVersion": 1,
+      "position": [
+        64,
+        176
+      ],
+      "id": "8b9d5f4a-654b-493c-bfb8-760a2df605c1",
+      "name": "MQTT4",
+      "credentials": {
+        "mqtt": {
+          "id": "NCHqUOWXoPAeuEGO",
+          "name": "MQTT account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "topics": "devices/smartfarmdevice001/data",
+        "options": {
+          "jsonParseBody": true
+        }
+      },
+      "type": "n8n-nodes-base.mqttTrigger",
+      "typeVersion": 1,
+      "position": [
+        320,
+        -160
+      ],
+      "id": "b2e25d1b-7fb4-4d54-95ee-deb245f93fa1",
+      "name": "MQTT Trigger1",
+      "credentials": {
+        "mqtt": {
+          "id": "NCHqUOWXoPAeuEGO",
+          "name": "MQTT account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7e83227c-cf4b-4f60-821b-1eb7ed82541a",
+              "leftValue": "={{ $json.message.enable }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        848,
+        -512
+      ],
+      "id": "0a6e9a28-3e16-4180-8d3a-254b992f7f5d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "5562565165",
+        "text": "💦  Máy bơm đã được bật",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1184,
+        -704
+      ],
+      "id": "9071a519-80d5-4498-8d17-1284612ab8ca",
+      "name": "Send a text message3",
+      "webhookId": "7bc1274a-4186-43a2-bff9-81281dd7b53f",
+      "credentials": {
+        "telegramApi": {
+          "id": "0VV7Vfyjasp6Kj67",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "5562565165",
+        "text": "🛑 Đã Tắt Máy Bơm. Quá trình tưới nước đã dừng lại.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        -464
+      ],
+      "id": "70393108-e7cd-4b34-9194-38b1e718a424",
+      "name": "Send a text message4",
+      "webhookId": "7bc1274a-4186-43a2-bff9-81281dd7b53f",
+      "credentials": {
+        "telegramApi": {
+          "id": "0VV7Vfyjasp6Kj67",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7e83227c-cf4b-4f60-821b-1eb7ed82541a",
+              "leftValue": "={{ $json.message.enable }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        784,
+        208
+      ],
+      "id": "0d712070-488a-4444-a84b-07d5ae71aaa7",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "chatId": "5562565165",
+        "text": "💦 Đã Bật Máy Bơm! Hệ thống đang bắt đầu tưới nước cho khu vườn. 🌱",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1184,
+        112
+      ],
+      "id": "03f473fd-7444-4ff9-b01c-6af0c6e15b26",
+      "name": "Send a text message5",
+      "webhookId": "7bc1274a-4186-43a2-bff9-81281dd7b53f",
+      "credentials": {
+        "telegramApi": {
+          "id": "0VV7Vfyjasp6Kj67",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "5562565165",
+        "text": "Máy bơm vẫn đang tắt",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1184,
+        320
+      ],
+      "id": "edf2eda5-5630-409f-94af-fe3680abb6bb",
+      "name": "Send a text message6",
+      "webhookId": "7bc1274a-4186-43a2-bff9-81281dd7b53f",
+      "credentials": {
+        "telegramApi": {
+          "id": "0VV7Vfyjasp6Kj67",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7e83227c-cf4b-4f60-821b-1eb7ed82541a",
+              "leftValue": "={{ $json.message.value }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        848,
+        -144
+      ],
+      "id": "47c65ac4-9f6b-48fb-8f38-2cf6240c2c62",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "chatId": "5562565165",
+        "text": "Bật  chế độ auto",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1152,
+        -240
+      ],
+      "id": "e44922c3-47e5-45eb-a395-c65a9cff783b",
+      "name": "Send a text message7",
+      "webhookId": "7bc1274a-4186-43a2-bff9-81281dd7b53f",
+      "credentials": {
+        "telegramApi": {
+          "id": "0VV7Vfyjasp6Kj67",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "5562565165",
+        "text": "Đã tắt chế độ AUTO. Chuyển sang chế độ manual",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        -48
+      ],
+      "id": "06caeddb-7bc9-4f1a-b086-c865f7a3707d",
+      "name": "Send a text message8",
+      "webhookId": "7bc1274a-4186-43a2-bff9-81281dd7b53f",
+      "credentials": {
+        "telegramApi": {
+          "id": "0VV7Vfyjasp6Kj67",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7e83227c-cf4b-4f60-821b-1eb7ed82541a",
+              "leftValue": "={{ $json.message.value }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        768,
+        656
+      ],
+      "id": "f47ad367-8ef2-49e8-961a-69d5d4391578",
+      "name": "If3"
+    },
+    {
+      "parameters": {
+        "chatId": "5562565165",
+        "text": "Bắt đầu chế độ auto",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        496
+      ],
+      "id": "4382dc0f-b899-43d8-810e-0342976460f0",
+      "name": "Send a text message9",
+      "webhookId": "7bc1274a-4186-43a2-bff9-81281dd7b53f",
+      "credentials": {
+        "telegramApi": {
+          "id": "0VV7Vfyjasp6Kj67",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "5562565165",
+        "text": "Vẫn đang tắt chế độ auto",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        720
+      ],
+      "id": "ca5d4f44-7bf7-4565-8024-ce70528473ca",
+      "name": "Send a text message10",
+      "webhookId": "7bc1274a-4186-43a2-bff9-81281dd7b53f",
+      "credentials": {
+        "telegramApi": {
+          "id": "0VV7Vfyjasp6Kj67",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.state }}",
+                    "rightValue": "PUMP",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "ab353322-9657-4797-b994-6d0c53d3d576"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "dfe98199-6874-40dd-8675-a1c8e81ee59c",
+                    "leftValue": "={{ $json.message.state }}",
+                    "rightValue": "AUTO_MODE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        560,
+        -160
+      ],
+      "id": "30f639e5-1ca3-4d94-9a43-7f142314e94f",
+      "name": "NOTIFY"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a chat action": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "MQTT",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "MQTT3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "MQTT1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "MQTT4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "MQTT2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a chat action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MQTT Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MQTT Trigger1": {
+      "main": [
+        [
+          {
+            "node": "NOTIFY",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Send a text message5",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Send a text message7",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "Send a text message9",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NOTIFY": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ea8effe9-0c33-4166-903b-2da8c458a3d9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3b88906ce94d98931a8dcb6928726d2e55857481a22e5413f64dc3f451c467f0"
+  },
+  "id": "kZWaUqAmZtJ7Gcc8",
+  "tags": []
+}
