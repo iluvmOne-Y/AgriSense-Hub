@@ -17,7 +17,7 @@ import {
 	PlantManager,
 } from './Handler.js'
 import NotificationService from 'Server/Services/NotificationService/index.js'
-import GetSmsTemplate from 'Server/Services/NotificationService/Sms/Template.js'
+import GetSmsTemplate from 'Server/Services/NotificationService/telegramNotify/Template.js'
 
 import {
 	initWeatherService,
@@ -38,8 +38,8 @@ const MQTT_CONFIG: IClientOptions = {
 let mqttClient: MqttClient
 
 /* MQTT Topics */
-const topicData = `devices/${Keys.mqtt.deviceId}/data` // subscribe to receive data from device
-const topicCommands = `devices/${Keys.mqtt.deviceId}/commands` //publish commands to device
+const topicData = `devices/${Keys.mqtt.deviceId}/data`
+const topicCommands = `devices/${Keys.mqtt.deviceId}/commands`
 
 /**
  * Check sensor data against safe thresholds and notify users if needed
@@ -92,33 +92,30 @@ const checkAndNotify = async (sensorData: SensorData) => {
 			)
 			const users = await User.find().lean().exec()
 
-			// Prepare SMS content once
+			// Prepare notify msg
 			const smsMessage = GetSmsTemplate('alert', {
 				warnings,
 				sensorData,
 			})
 
-			// Notify all users via Email and SMS
-			for (const user of users) {
-				if (user.email) {
-					NotificationService.MailService.sendMail(
-						user.email,
-						'alert',
-						{
-							username: user.username,
-							warnings: warnings,
-							sensorData: sensorData,
-						}
-					)
-				}
-
-				if (user.phoneNumber && smsMessage) {
-					NotificationService.SmsService.sendSMS(
-						[user.phoneNumber],
-						smsMessage
-					)
-				}
+			//send notify via telegram
+			if (smsMessage) {
+				NotificationService.sendTelegramAlert(smsMessage)
 			}
+
+			// // Notify all users via Email
+			// for (const user of users) {
+			// 	if (user.email) {
+			// 		NotificationService.MailService.sendMail(
+			// 			user.email,
+			// 			'alert',
+			// 			{
+			// 				username: user.username,
+			// 				warnings: warnings,
+			// 				sensorData: sensorData,
+			// 			}
+			// 		)
+			// 	}
 		}
 	} catch (error) {
 		console.error(
@@ -184,51 +181,40 @@ export const initMqtt = (io: Server) => {
 
 	// Handle incoming MQTT messages
 	mqttClient.on('message', async (topic, message) => {
-		if (!topic || !message) return
+		if (!topic || !message) return // Ignore invalid topics or messages
+
+		// Parse the incoming message
+		const parsedMessage = JSON.parse(message.toString()) as
+			| SensorUpdate
+			| DeviceStateUpdate
 
 		try {
-			const parsedMessage = JSON.parse(message.toString())
-
-			// TASK 4 - HUY QUANG TRUONG
-			if (
-				parsedMessage.hasOwnProperty('temp') ||
-				parsedMessage.hasOwnProperty('soil')
-			) {
-				// JSON --> Model
-				const rawData = parsedMessage as {
-					temp: number
-					hum: number
-					soil: number
-				}
-
-				const sensorData: SensorData = {
-					temperature: rawData.temp, // Map temp -> temperature
-					humidity: rawData.hum, // Map hum -> humidity
-					moisture: rawData.soil, // Map soil -> moisture
-				}
-
-				console.log(
-					chalk.blue(
-						`Received: T:${sensorData.temperature}, H:${sensorData.humidity}, M:${sensorData.moisture}`
-					)
-				)
+			// Check if the parsed message contains sensor data
+			if (parsedMessage.hasOwnProperty('sensorData')) {
+				const sensorUpdate = parsedMessage as SensorUpdate
 
 				// Save sensor record to database
-				const newSensorRecord = new SensorRecord({
-					data: sensorData,
+				const newSensorUpdate = new SensorRecord({
+					data: sensorUpdate.sensorData,
 					timestamp: new Date(),
 				})
-
-				await newSensorRecord.save().catch((err) => {
-					console.error(`${chalk.red('✗ DB Save Error:')}`, err)
+				newSensorUpdate.save().catch((err) => {
+					console.error(
+						`${chalk.red('✗ Server: Database Sensor Save Error:')}`,
+						err
+					)
 				})
 
 				// Check sensor data and notify users if needed
-				await checkAndNotify(sensorData)
+				await checkAndNotify(sensorUpdate.sensorData)
+
 				// Broadcast sensor data to websocket clients
-				broadcastSensorData(io, { sensorData: sensorData })
+				broadcastSensorData(io, sensorUpdate)
+
+				// check update state
 			} else if (parsedMessage.hasOwnProperty('enable')) {
 				const deviceStateUpdate = parsedMessage as DeviceStateUpdate
+
 				// Broadcast device state update to websocket clients
 				broadcastDeviceStateUpdate(io, deviceStateUpdate)
 			}
@@ -238,7 +224,6 @@ export const initMqtt = (io: Server) => {
 				err
 			)
 		}
-		// TASK 4 - HUY QUANG TRUONG
 	})
 
 	// Handle connection errors
