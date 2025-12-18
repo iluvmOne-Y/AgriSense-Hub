@@ -17,7 +17,7 @@ import {
 	PlantManager,
 } from './Handler.js'
 import NotificationService from 'Server/Services/NotificationService/index.js'
-import GetSmsTemplate from 'Server/Services/NotificationService/Sms/Template.js'
+import GetSmsTemplate from 'Server/Services/NotificationService/telegramNotify/Template.js'
 
 /* MQTT Client Setup */
 const MQTT_CONFIG: IClientOptions = {
@@ -87,35 +87,36 @@ const checkAndNotify = async (sensorData: SensorData) => {
 			)
 			const users = await User.find().lean().exec()
 
-			// Prepare SMS content once
+			// Prepare notify msg 
 			const smsMessage = GetSmsTemplate('alert', {
 				warnings,
 				sensorData,
 			})
 
-			// Notify all users via Email and SMS
-			for (const user of users) {
-				if (user.email) {
-					NotificationService.MailService.sendMail(
-						user.email,
-						'alert',
-						{
-							username: user.username,
-							warnings: warnings,
-							sensorData: sensorData,
-						}
-					)
-				}
+			//send notify via telegram
+			if (smsMessage){
+				NotificationService.sendTelegramAlert(smsMessage)
+			}
+			
 
-				if (user.phoneNumber && smsMessage) {
-					NotificationService.SmsService.sendSMS(
-						[user.phoneNumber],
-						smsMessage
-					)
-				}
+			// // Notify all users via Email 
+			// for (const user of users) {
+			// 	if (user.email) {
+			// 		NotificationService.MailService.sendMail(
+			// 			user.email,
+			// 			'alert',
+			// 			{
+			// 				username: user.username,
+			// 				warnings: warnings,
+			// 				sensorData: sensorData,
+			// 			}
+			// 		)
+			// 	}
+
+			
 			}
 		}
-	} catch (error) {
+	 catch (error) {
 		console.error(
 			chalk.red(
 				'Error while checking sensor data against safe thresholds:'
@@ -189,8 +190,10 @@ export const initMqtt = (io: Server) => {
 
 				// Broadcast sensor data to websocket clients
 				broadcastSensorData(io, sensorUpdate)
-			} else if (parsedMessage.hasOwnProperty('enable')) {
-				const deviceStateUpdate = parsedMessage as DeviceStateUpdate
+			
+				// check update state 
+            } else if (parsedMessage.hasOwnProperty('enable')) {
+                const deviceStateUpdate = parsedMessage as DeviceStateUpdate
 
 				// Broadcast device state update to websocket clients
 				broadcastDeviceStateUpdate(io, deviceStateUpdate)

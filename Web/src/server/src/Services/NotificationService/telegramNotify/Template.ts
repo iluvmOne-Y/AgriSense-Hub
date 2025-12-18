@@ -1,7 +1,7 @@
 import { SensorData } from 'Shared/Data/Types/types_Sensor.js'
 
 /**
- * Generate SMS Alert Message
+ * Generate Notification Alert 
  *
  * @param warnings - Array of warning strings
  * @param data - Current sensor data
