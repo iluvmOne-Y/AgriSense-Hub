@@ -28,9 +28,12 @@ const SensorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 	// State for plant profiles and automation
 	const [isAutoMode, setIsAutoMode] = useState<boolean>(false)
 	const [isPumpActive, setIsPumpActive] = useState<boolean>(false)
-	const [selectedPlant, setSelectedPlant] = useState<string | null>(null)
+
 	const [availablePlants, setAvailablePlants] = useState<string[]>([])
+	const [selectedPlant, setSelectedPlant] = useState<string | null>(null)
 	const [thresholds, setThresholds] = useState<SafeThresholds | null>(null)
+
+	const [rainProbability, setRainProbability] = useState<number | null>(null)
 
 	// State for sensor data
 	const [currentReadings, setCurrentReadings] = useState<SensorData | null>(
@@ -118,14 +121,16 @@ const SensorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 		})
 
 		// Listen for pump state updates
-		socket.on('pump_state_update', (enable: boolean) =>
+		socket.on('pump_state_update', (enable: boolean) => {
 			setIsPumpActive(enable)
-		)
+			notify('info', `Pump ${enable ? 'activated' : 'deactivated'}`)
+		})
 
 		// Listen for auto mode state updates
-		socket.on('auto_state_update', (enable: boolean) =>
+		socket.on('auto_state_update', (enable: boolean) => {
 			setIsAutoMode(enable)
-		)
+			notify('info', `Auto Mode ${enable ? 'enabled' : 'disabled'}`)
+		})
 
 		// Listen for plant type updates to update thresholds
 		socket.on(
@@ -138,6 +143,11 @@ const SensorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 				notify('success', `Profile loaded: ${data.plantType}`, 5)
 			}
 		)
+
+		// Listen for weather updates
+		socket.on('weather_update', (data: { rainProbability: number }) => {
+			setRainProbability(data.rainProbability)
+		})
 
 		// Listen for command acknowledgments to show errors
 		socket.on(
@@ -201,11 +211,14 @@ const SensorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 		SensorContext.Provider,
 		{
 			value: {
-				selectedPlant,
-				availablePlants,
 				isAutoMode,
 				isPumpActive,
+
+				availablePlants,
+				selectedPlant,
 				thresholds,
+
+				rainProbability,
 
 				currentReadings,
 				recordHistory,
