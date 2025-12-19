@@ -15,7 +15,7 @@ import Keys from 'Server/Config/Keys.js'
 import User, { IUser } from 'Server/Models/User.js'
 import Auth from 'Server/Middleware/Auth.js'
 import Validate from 'Server/Middleware/Validate.js'
-import MailService from 'Server/Services/NotificationService/Mail/index.js'
+//import MailService from 'Server/Services/NotificationService/Mail/index.js'
 import { GetUserQueryFromCredential } from './Helper.js'
 
 /** Router for authentication-related routes */
@@ -36,7 +36,7 @@ router.get('/me', Auth, async (req: Request, res: Response) => {
 		const user = req.user as IUser
 		res.status(200).json({ success: true, data: { user: user.toObject() } })
 	} catch (error) {
-		console.error(
+		console.error(	
 			`${chalk.red('Error fetching authenticated user:')} ${error}`
 		)
 		res.status(400).json({
@@ -171,12 +171,12 @@ router.post(
 				password: hash,
 			}).save()
 
-			// Send signup email
-			if (email) {
-				await MailService.sendMail(email, 'signup', {
-					username,
-				})
-			}
+			// // Send signup email
+			// if (email) {
+			// 	await MailService.sendMail(email, 'signup', {
+			// 		username,
+			// 	})
+			// }
 
 			// Create JWT token
 			const token = jwt.sign({ id: user.id }, secret, {
@@ -238,10 +238,10 @@ router.post(
 			existingUser.resetPasswordExpires = new Date(Date.now() + 3600000) // 1 hour
 			await existingUser.save()
 
-			// Send reset email
-			await MailService.sendMail(existingUser.email, 'reset', {
-				resetToken,
-			})
+			// // Send reset email
+			// await MailService.sendMail(existingUser.email, 'reset', {
+			// 	resetToken,
+			// })
 
 			res.status(200).json({
 				success: true,
@@ -297,14 +297,14 @@ router.post(
 			resetUser.resetPasswordExpires = undefined
 			await resetUser.save()
 
-			// Send confirmation email
-			if (resetUser.email) {
-				await MailService.sendMail(
-					resetUser.email,
-					'reset-confirmation',
-					{}
-				)
-			}
+			// // Send confirmation email
+			// if (resetUser.email) {
+			// 	await MailService.sendMail(
+			// 		resetUser.email,
+			// 		'reset-confirmation',
+			// 		{}
+			// 	)
+			// }
 
 			res.status(200).json({
 				success: true,
@@ -358,10 +358,10 @@ router.post(
 			user.password = hash
 			await user.save()
 
-			// Send confirmation email
-			if (user.email) {
-				await MailService.sendMail(user.email, 'reset-confirmation', {})
-			}
+			// // Send confirmation email
+			// if (user.email) {
+			// 	await MailService.sendMail(user.email, 'reset-confirmation', {})
+			// }
 
 			// Respond with success message
 			res.status(200).json({
