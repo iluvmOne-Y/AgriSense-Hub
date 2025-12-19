@@ -4,14 +4,18 @@ import chalk from 'chalk'
 import { IoTAction, IoTDeviceState } from 'Shared/Data/Constants/index.js'
 import {
 	PlantProfileType,
+	SensorData,
 	SensorRecordType,
 	SensorUpdate,
 	DeviceStateUpdate,
 } from 'Shared/Data/Types/index.js'
-import { publishToDevice } from './index.js'
 import { MAX_SENSOR_RECORD_STORE } from 'Shared/Data/Constants/consts_IoT.js'
+
+import { publishToDevice } from './index.js'
 import SensorRecord from 'Server/Models/SensorRecord.js'
 import PlantProfile from 'Server/Models/PlantProfile.js'
+import NotificationService from 'Server/Services/NotificationService/index.js'
+import WeatherService from 'Server/Services/WeatherService.js'
 
 /**
  * Manager to store device state and latest data from the device
@@ -26,6 +30,8 @@ export const PlantManager = {
 	latestSensorRecords: new Array<SensorRecordType>(),
 	currentPlantType: null as string | null,
 	currentPlantProfile: null as PlantProfileType | null,
+
+	currentWarnings: [] as string[],
 
 	state: {
 		auto: true,
@@ -78,13 +84,12 @@ export const initHandler = async () => {
 }
 
 /**
- * Handle IoT-related socket events for a connected user.
- * Also sends the currently stored sensor data to the newly connected client.
+ * Handle initialization for a newly connected socket client.
  *
  * @param io - The Socket.io server instance
  * @param socket - The connected user's socket
  */
-export const iotHandler = async (socket: Socket, io: Server) => {
+export const socketInitHandler = async (socket: Socket, io: Server) => {
 	// Send the latest sensor records and system state to the newly connected client
 	socket.emit('initial_records', PlantManager.latestSensorRecords)
 	socket.emit('system_state', {
@@ -112,6 +117,9 @@ export const iotHandler = async (socket: Socket, io: Server) => {
 
 	// Send available plant types to client
 	socket.emit('available_plants', plantTypes)
+
+	// Send the latest weather forecast data
+	socket.emit('weather_update', await WeatherService.forcastWeather())
 
 	/**
 	 * Flow 2: Web Frontend -> Web Server -> MQTT -> ESP -> Output
@@ -371,5 +379,140 @@ export const broadcastDeviceStateUpdate = (
 			console.warn(
 				`${chalk.yellow('⚠️  [Warning] Unknown device state update received:')} ${data.state}`
 			)
+	}
+}
+
+/**
+ * Check sensor data against safe thresholds and notify users if needed
+ *
+ * @param sensorData - The latest sensor data to check
+ */
+export const checkAndNotify = async (sensorData: SensorData) => {
+	console.log(
+		chalk.blue(
+			`Sensor Check: T:${sensorData.temperature}C, H:${sensorData.humidity}%, M:${sensorData.moisture}%`
+		)
+	)
+
+	try {
+		const profile = PlantManager.currentPlantProfile
+		if (!profile) {
+			console.warn(
+				chalk.yellow(
+					'⚠️ No Plant Profile Loaded. Skipping sensor check.'
+				)
+			)
+			return
+		}
+
+		// Check sensor data against thresholds
+		const warnings: string[] = []
+		const safeThresholds = profile.safeThresholds
+
+		if (sensorData.temperature > safeThresholds.temperature.upper)
+			warnings.push('High Temp')
+		if (sensorData.temperature < safeThresholds.temperature.lower)
+			warnings.push('Low Temp')
+
+		if (sensorData.humidity < safeThresholds.humidity.lower)
+			warnings.push('Low Humidity')
+		if (sensorData.humidity > safeThresholds.humidity.upper)
+			warnings.push('High Humidity')
+
+		if (sensorData.moisture < safeThresholds.moisture.lower)
+			warnings.push('Low Moisture (Dry)')
+		if (sensorData.moisture > safeThresholds.moisture.upper)
+			warnings.push('High Moisture (Waterlogged)')
+
+		// Check if any new warnings were generated
+		if (
+			warnings.length > 0 &&
+			!warnings.every((warning) =>
+				PlantManager.currentWarnings.includes(warning)
+			)
+		) {
+			console.log(
+				chalk.magenta(
+					`⚠️ New Critical State Detected: ${warnings.join(', ')}`
+				)
+			)
+
+			// Send alert via telegram
+			NotificationService.sendTelegramAlert({
+				warnings,
+				sensorData,
+			})
+		}
+	} catch (error) {
+		console.error(
+			chalk.red(
+				'Error while checking sensor data against safe thresholds:'
+			),
+			error
+		)
+	}
+}
+
+/**
+ * Evaluate the latest sensor data against the plant profile thresholds
+ * and publish pump commands if needed.
+ */
+export const evaluateAndPublishPumpDecision = async (
+	sensorData: SensorData
+) => {
+	if (!PlantManager.state.auto) {
+		return
+	}
+
+	// Ensure plant profile is loaded
+	const safeThresholds = PlantManager.currentPlantProfile?.safeThresholds
+
+	if (!safeThresholds) {
+		console.warn(
+			chalk.yellow(
+				'⚠️ No plant profile loaded for pump decision evaluation.'
+			)
+		)
+		return
+	}
+
+	// Get thresholds from plant profile
+	let lowerThreshold = safeThresholds.moisture.lower
+	const upperThreshold = safeThresholds.moisture.upper
+
+	// Adjust lower threshold based on temperature and humidity
+	if (sensorData.temperature > safeThresholds.temperature.upper) {
+		lowerThreshold +=
+			(sensorData.temperature - safeThresholds.temperature.upper) / 2
+	} else if (sensorData.temperature < safeThresholds.temperature.lower) {
+		lowerThreshold -=
+			(safeThresholds.temperature.lower - sensorData.temperature) / 2
+	}
+	if (sensorData.humidity < safeThresholds.humidity.lower) {
+		lowerThreshold +=
+			(safeThresholds.humidity.lower - sensorData.humidity) / 5
+	} else if (sensorData.humidity > safeThresholds.humidity.upper) {
+		lowerThreshold -=
+			(sensorData.humidity - safeThresholds.humidity.upper) / 5
+	}
+
+	// Clamp lower threshold within reasonable bounds
+	if (lowerThreshold < 10) lowerThreshold = 10
+
+	// Decide whether to activate or deactivate the pump
+	if (
+		!PlantManager.state.pumpActive &&
+		sensorData.moisture <= lowerThreshold
+	) {
+		publishToDevice(
+			JSON.stringify({ action: IoTAction.Pump, enable: true })
+		)
+	} else if (
+		PlantManager.state.pumpActive &&
+		sensorData.moisture >= (upperThreshold + lowerThreshold) / 2
+	) {
+		publishToDevice(
+			JSON.stringify({ action: IoTAction.Pump, enable: false })
+		)
 	}
 }

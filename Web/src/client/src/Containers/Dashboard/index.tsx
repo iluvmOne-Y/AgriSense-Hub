@@ -19,8 +19,13 @@ import HistoryChart from 'Client/Components/Dashboard/HistoryChart.js'
 const DashboardContainer: React.FC = () => {
 	const { user, logout } = useAuth()
 	const { dispatch } = usePage()
-	const { currentReadings, recordHistory, isPumpActive, thresholds } =
-		useSensor()
+	const {
+		currentReadings,
+		recordHistory,
+		isPumpActive,
+		thresholds,
+		rainProbability,
+	} = useSensor()
 	const { socket } = useSocket()
 
 	/**
@@ -59,6 +64,7 @@ const DashboardContainer: React.FC = () => {
 					currentReadings={currentReadings}
 					thresholds={thresholds}
 					isPumpActive={isPumpActive}
+					rainProbability={rainProbability}
 				/>
 				<ControlPanel />
 			</div>

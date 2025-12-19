@@ -2,22 +2,18 @@ import mqtt, { IClientOptions, MqttClient } from 'mqtt'
 import { Server } from 'socket.io'
 import chalk from 'chalk'
 
-import {
-	SensorData,
-	SensorUpdate,
-	DeviceStateUpdate,
-} from 'Shared/Data/Types/index.js'
+import { SensorUpdate, DeviceStateUpdate } from 'Shared/Data/Types/index.js'
 import Keys from 'Server/Config/Keys.js'
-import User from 'Server/Models/User.js'
+
 import SensorRecord from 'Server/Models/SensorRecord.js'
 import {
 	initHandler,
+	checkAndNotify,
+	evaluateAndPublishPumpDecision,
 	broadcastSensorData,
 	broadcastDeviceStateUpdate,
-	PlantManager,
 } from './Handler.js'
-import NotificationService from 'Server/Services/NotificationService/index.js'
-import GetSmsTemplate from 'Server/Services/NotificationService/telegramNotify/Template.js'
+import WeatherService from 'Server/Services/WeatherService.js'
 
 /* MQTT Client Setup */
 const MQTT_CONFIG: IClientOptions = {
@@ -34,6 +30,7 @@ let mqttClient: MqttClient
 
 /* MQTT Topics */
 const topicData = `devices/${Keys.mqtt.deviceId}/data`
+const topicWeather = `devices/${Keys.mqtt.deviceId}/weather`
 const topicCommands = `devices/${Keys.mqtt.deviceId}/commands`
 
 /**
@@ -153,7 +150,7 @@ export const initMqtt = (io: Server) => {
 			`${chalk.green('✓')} ${chalk.blue('Server: Connected to MQTT Broker (TLS)')}`
 		)
 
-		// Subscribe to topics for all known devices
+		// Subscribe to data topic for receiving data
 		mqttClient.subscribe(topicData, (err) => {
 			if (err) {
 				console.error(
@@ -165,6 +162,11 @@ export const initMqtt = (io: Server) => {
 					`${chalk.green('✓')} ${chalk.blue(`Server: Subscribed to topic ${topicData}`)}`
 				)
 			}
+		})
+
+		// Listen for weather forecast updates and publish to MQTT
+		WeatherService.onWeatherForcastUpdate((weatherData) => {
+			mqttClient.publish(topicWeather, JSON.stringify(weatherData))
 		})
 	})
 
@@ -197,13 +199,13 @@ export const initMqtt = (io: Server) => {
 				// Check sensor data and notify users if needed
 				await checkAndNotify(sensorUpdate.sensorData)
 
+				// Evaluate pump decision and publish command if necessary
+				evaluateAndPublishPumpDecision(sensorUpdate.sensorData)
+
 				// Broadcast sensor data to websocket clients
 				broadcastSensorData(io, sensorUpdate)
-			
-				// check update state 
-				
-            } else if (parsedMessage.hasOwnProperty('enable')) {
-                const deviceStateUpdate = parsedMessage as DeviceStateUpdate
+			} else if (parsedMessage.hasOwnProperty('enable')) {
+				const deviceStateUpdate = parsedMessage as DeviceStateUpdate
 
 				// Broadcast device state update to websocket clients
 				broadcastDeviceStateUpdate(io, deviceStateUpdate)
@@ -241,5 +243,3 @@ export const publishToDevice = (command: string) => {
 		console.log(`Sent "${command}" to ${topicCommands}`)
 	}
 }
-
-export default null

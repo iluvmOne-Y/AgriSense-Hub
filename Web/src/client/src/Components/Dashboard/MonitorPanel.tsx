@@ -12,7 +12,8 @@ const MonitorPanel: React.FC<{
 	currentReadings: SensorData | null
 	thresholds: SafeThresholds | null
 	isPumpActive: boolean
-}> = ({ currentReadings, thresholds, isPumpActive }) => {
+	rainProbability: number | null
+}> = ({ currentReadings, thresholds, isPumpActive, rainProbability }) => {
 	/**
 	 * Calculates the system status based on current readings and safety thresholds.
 	 *
@@ -115,10 +116,25 @@ const MonitorPanel: React.FC<{
 						{isPumpActive ? 'Active (On)' : 'Inactive (Off)'}
 					</span>
 				</div>
+
+				{/* System Status Section */}
 				<div className="monitor-item">
 					<span>System Status</span>
 					<span className={`monitor-value ${systemStatus.class}`}>
 						{systemStatus.text}
+					</span>
+				</div>
+
+				{/* Rain Probability Section */}
+				<div className="monitor-item">
+					<span>Rain Probability</span>
+					<span
+						className="monitor-value"
+						style={{ color: '#9b59b6' }}
+					>
+						{rainProbability !== null
+							? `${rainProbability} %`
+							: '--'}
 					</span>
 				</div>
 			</div>
