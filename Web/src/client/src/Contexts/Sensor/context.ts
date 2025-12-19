@@ -6,11 +6,14 @@ import type { SensorContextValueType } from './index.js'
  * Default values for the Sensor context.
  */
 export const DEFAULT: SensorContextValueType = {
-	selectedPlant: null,
-	availablePlants: [],
 	isAutoMode: false,
 	isPumpActive: false,
+
+	availablePlants: [],
+	selectedPlant: null,
 	thresholds: null,
+
+	rainProbability: null,
 
 	currentReadings: null,
 	recordHistory: [],

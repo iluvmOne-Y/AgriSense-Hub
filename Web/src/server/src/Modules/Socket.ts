@@ -5,7 +5,8 @@ import { Server as HttpServer } from 'http'
 import Keys from 'Server/Config/Keys.js'
 import User from 'Server/Models/User.js'
 import { initMqtt } from 'Server/Modules/Mqtt/index.js'
-import { iotHandler } from 'Server/Modules/Mqtt/Handler.js'
+import { socketInitHandler } from 'Server/Modules/Mqtt/Handler.js'
+import WeatherService, { ForcastData } from 'Server/Services/WeatherService.js'
 
 /**
  * Authentication middleware for Socket.io connections.
@@ -68,7 +69,12 @@ const socketInit = (server: HttpServer) => {
 	// Setup socket server
 	io.use(AuthHandler)
 	io.on('connection', (socket: Socket) => {
-		iotHandler(socket, io)
+		socketInitHandler(socket, io)
+	})
+
+	// Listen for weather forecast updates and broadcast to all clients
+	WeatherService.onWeatherForcastUpdate((data: ForcastData) => {
+		io.emit('weather_update', data)
 	})
 
 	// Start MQTT when Socket starts

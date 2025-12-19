@@ -2,22 +2,18 @@ import mqtt, { IClientOptions, MqttClient } from 'mqtt'
 import { Server } from 'socket.io'
 import chalk from 'chalk'
 
-import {
-	SensorData,
-	SensorUpdate,
-	DeviceStateUpdate,
-} from 'Shared/Data/Types/index.js'
+import { SensorUpdate, DeviceStateUpdate } from 'Shared/Data/Types/index.js'
 import Keys from 'Server/Config/Keys.js'
-import User from 'Server/Models/User.js'
+
 import SensorRecord from 'Server/Models/SensorRecord.js'
 import {
 	initHandler,
+	checkAndNotify,
+	evaluateAndPublishPumpDecision,
 	broadcastSensorData,
 	broadcastDeviceStateUpdate,
-	PlantManager,
 } from './Handler.js'
-import NotificationService from 'Server/Services/NotificationService/index.js'
-import GetSmsTemplate from 'Server/Services/NotificationService/telegramNotify/Template.js'
+import WeatherService from 'Server/Services/WeatherService.js'
 
 /* MQTT Client Setup */
 const MQTT_CONFIG: IClientOptions = {
@@ -34,97 +30,8 @@ let mqttClient: MqttClient
 
 /* MQTT Topics */
 const topicData = `devices/${Keys.mqtt.deviceId}/data`
+const topicWeather = `devices/${Keys.mqtt.deviceId}/weather`
 const topicCommands = `devices/${Keys.mqtt.deviceId}/commands`
-
-/**
- * Check sensor data against safe thresholds and notify users if needed
- *
- * @param sensorData - The latest sensor data to check
- */
-const checkAndNotify = async (sensorData: SensorData) => {
-	console.log(
-		chalk.blue(
-			`Sensor Check: T:${sensorData.temperature}C, H:${sensorData.humidity}%, M:${sensorData.moisture}%`
-		)
-	)
-
-	try {
-		const profile = PlantManager.currentPlantProfile
-		if (!profile) {
-			console.warn(
-				chalk.yellow(
-					'⚠️ No Plant Profile Loaded. Skipping sensor check.'
-				)
-			)
-			return
-		}
-
-		// Check sensor data against thresholds
-		const warnings: string[] = []
-		const safeThresholds = profile.safeThresholds
-
-		if (sensorData.temperature > safeThresholds.temperature.upper)
-			warnings.push('High Temp')
-		if (sensorData.temperature < safeThresholds.temperature.lower)
-			warnings.push('Low Temp')
-
-		if (sensorData.humidity < safeThresholds.humidity.lower)
-			warnings.push('Low Humidity')
-		if (sensorData.humidity > safeThresholds.humidity.upper)
-			warnings.push('High Humidity')
-
-		if (sensorData.moisture < safeThresholds.moisture.lower)
-			warnings.push('Low Moisture (Dry)')
-		if (sensorData.moisture > safeThresholds.moisture.upper)
-			warnings.push('High Moisture (Waterlogged)')
-
-		// Check if any warnings were generated
-		if (warnings.length > 0) {
-			console.log(
-				chalk.magenta(
-					`⚠️ Critical Sensor Data Detected: ${warnings.join(', ')}`
-				)
-			)
-			const users = await User.find().lean().exec()
-
-			// Prepare notify msg 
-			const smsMessage = GetSmsTemplate('alert', {
-				warnings,
-				sensorData,
-			})
-
-			//send notify via telegram
-			if (smsMessage){
-				NotificationService.sendTelegramAlert(smsMessage)
-			}
-			
-
-			// // Notify all users via Email 
-			// for (const user of users) {
-			// 	if (user.email) {
-			// 		NotificationService.MailService.sendMail(
-			// 			user.email,
-			// 			'alert',
-			// 			{
-			// 				username: user.username,
-			// 				warnings: warnings,
-			// 				sensorData: sensorData,
-			// 			}
-			// 		)
-			// 	}
-
-			
-			}
-		}
-	 catch (error) {
-		console.error(
-			chalk.red(
-				'Error while checking sensor data against safe thresholds:'
-			),
-			error
-		)
-	}
-}
 
 /**
  * Initialize MQTT connection and set up message handling
@@ -144,7 +51,7 @@ export const initMqtt = (io: Server) => {
 			`${chalk.green('✓')} ${chalk.blue('Server: Connected to MQTT Broker (TLS)')}`
 		)
 
-		// Subscribe to topics for all known devices
+		// Subscribe to data topic for receiving data
 		mqttClient.subscribe(topicData, (err) => {
 			if (err) {
 				console.error(
@@ -156,6 +63,11 @@ export const initMqtt = (io: Server) => {
 					`${chalk.green('✓')} ${chalk.blue(`Server: Subscribed to topic ${topicData}`)}`
 				)
 			}
+		})
+
+		// Listen for weather forecast updates and publish to MQTT
+		WeatherService.onWeatherForcastUpdate((weatherData) => {
+			mqttClient.publish(topicWeather, JSON.stringify(weatherData))
 		})
 	})
 
@@ -188,12 +100,13 @@ export const initMqtt = (io: Server) => {
 				// Check sensor data and notify users if needed
 				await checkAndNotify(sensorUpdate.sensorData)
 
+				// Evaluate pump decision and publish command if necessary
+				evaluateAndPublishPumpDecision(sensorUpdate.sensorData)
+
 				// Broadcast sensor data to websocket clients
 				broadcastSensorData(io, sensorUpdate)
-			
-				// check update state 
-            } else if (parsedMessage.hasOwnProperty('enable')) {
-                const deviceStateUpdate = parsedMessage as DeviceStateUpdate
+			} else if (parsedMessage.hasOwnProperty('enable')) {
+				const deviceStateUpdate = parsedMessage as DeviceStateUpdate
 
 				// Broadcast device state update to websocket clients
 				broadcastDeviceStateUpdate(io, deviceStateUpdate)
@@ -231,5 +144,3 @@ export const publishToDevice = (command: string) => {
 		console.log(`Sent "${command}" to ${topicCommands}`)
 	}
 }
-
-export default null

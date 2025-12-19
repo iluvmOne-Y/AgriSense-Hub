@@ -13,11 +13,12 @@ import useSensor from './hook.js'
 /**
  * Type definition for the Sensor context value.
  *
- * @property selectedPlant - The currently selected plant type.
- * @property availablePlants - List of available plants with their IDs and types.
  * @property isAutoMode - Indicates if the system is in automatic mode.
  * @property isPumpActive - Indicates if the water pump is currently active.
+ * @property availablePlants - List of available plants with their IDs and types.
+ * @property selectedPlant - The currently selected plant type.
  * @property thresholds - The safe thresholds for the selected plant.
+ * @property rainProbability - The probability of rain in percentage.
  * @property currentReadings - The latest sensor data readings.
  * @property recordHistory - Historical sensor data records.
  * @property onPlantChange - Handler for changing the selected plant.
@@ -25,11 +26,14 @@ import useSensor from './hook.js'
  * @property onPumpToggle - Handler for toggling the water pump state.
  */
 export type SensorContextValueType = {
-	selectedPlant: string | null
-	availablePlants: string[]
 	isAutoMode: boolean
 	isPumpActive: boolean
+
+	availablePlants: string[]
+	selectedPlant: string | null
 	thresholds: SafeThresholds | null
+
+	rainProbability: number | null
 
 	currentReadings: SensorData | null
 	recordHistory: SensorRecordType[]
