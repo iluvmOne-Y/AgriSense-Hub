@@ -2,28 +2,18 @@ import mqtt, { IClientOptions, MqttClient } from 'mqtt'
 import { Server } from 'socket.io'
 import chalk from 'chalk'
 
-import {
-	SensorData,
-	SensorUpdate,
-	DeviceStateUpdate,
-} from 'Shared/Data/Types/index.js'
+import { SensorUpdate, DeviceStateUpdate } from 'Shared/Data/Types/index.js'
 import Keys from 'Server/Config/Keys.js'
-import User from 'Server/Models/User.js'
+
 import SensorRecord from 'Server/Models/SensorRecord.js'
 import {
 	initHandler,
+	checkAndNotify,
+	evaluateAndPublishPumpDecision,
 	broadcastSensorData,
 	broadcastDeviceStateUpdate,
-	PlantManager,
-	evaluateAndPublishPumpDecision,
 } from './Handler.js'
-import NotificationService from 'Server/Services/NotificationService/index.js'
-
-import {
-	initWeatherService,
-	startWeatherForecastScheduler,
-} from 'Server/Services/Weather/WeatherService.js'
-import GetSmsTemplate from 'Server/Services/NotificationService/telegramNotify/Template.js'
+import WeatherService from 'Server/Services/WeatherService.js'
 
 /* MQTT Client Setup */
 const MQTT_CONFIG: IClientOptions = {
@@ -40,93 +30,8 @@ let mqttClient: MqttClient
 
 /* MQTT Topics */
 const topicData = `devices/${Keys.mqtt.deviceId}/data`
+const topicWeather = `devices/${Keys.mqtt.deviceId}/weather`
 const topicCommands = `devices/${Keys.mqtt.deviceId}/commands`
-
-/**
- * Check sensor data against safe thresholds and notify users if needed
- *
- * @param sensorData - The latest sensor data to check
- */
-const checkAndNotify = async (sensorData: SensorData) => {
-	console.log(
-		chalk.blue(
-			`Sensor Check: T:${sensorData.temperature}C, H:${sensorData.humidity}%, M:${sensorData.moisture}%`
-		)
-	)
-
-	try {
-		const profile = PlantManager.currentPlantProfile
-		if (!profile) {
-			console.warn(
-				chalk.yellow(
-					'⚠️ No Plant Profile Loaded. Skipping sensor check.'
-				)
-			)
-			return
-		}
-
-		// Check sensor data against thresholds
-		const warnings: string[] = []
-		const safeThresholds = profile.safeThresholds
-
-		if (sensorData.temperature > safeThresholds.temperature.upper)
-			warnings.push('High Temp')
-		if (sensorData.temperature < safeThresholds.temperature.lower)
-			warnings.push('Low Temp')
-
-		if (sensorData.humidity < safeThresholds.humidity.lower)
-			warnings.push('Low Humidity')
-		if (sensorData.humidity > safeThresholds.humidity.upper)
-			warnings.push('High Humidity')
-
-		if (sensorData.moisture < safeThresholds.moisture.lower)
-			warnings.push('Low Moisture (Dry)')
-		if (sensorData.moisture > safeThresholds.moisture.upper)
-			warnings.push('High Moisture (Waterlogged)')
-
-		// Check if any warnings were generated
-		if (warnings.length > 0) {
-			console.log(
-				chalk.magenta(
-					`⚠️ Critical Sensor Data Detected: ${warnings.join(', ')}`
-				)
-			)
-			const users = await User.find().lean().exec()
-
-			// Prepare notify msg
-			const smsMessage = GetSmsTemplate('alert', {
-				warnings,
-				sensorData,
-			})
-
-			//send notify via telegram
-			if (smsMessage) {
-				NotificationService.sendTelegramAlert(smsMessage)
-			}
-
-			// // Notify all users via Email
-			// for (const user of users) {
-			// 	if (user.email) {
-			// 		NotificationService.MailService.sendMail(
-			// 			user.email,
-			// 			'alert',
-			// 			{
-			// 				username: user.username,
-			// 				warnings: warnings,
-			// 				sensorData: sensorData,
-			// 			}
-			// 		)
-			// 	}
-		}
-	} catch (error) {
-		console.error(
-			chalk.red(
-				'Error while checking sensor data against safe thresholds:'
-			),
-			error
-		)
-	}
-}
 
 /**
  * Initialize MQTT connection and set up message handling
@@ -140,15 +45,13 @@ export const initMqtt = (io: Server) => {
 	// Connect to MQTT Broker
 	mqttClient = mqtt.connect(MQTT_CONFIG)
 
-	initWeatherService(mqttClient) // Task2 - HUY QUANG TRUONG
-
 	// Handle successful connection
 	mqttClient.on('connect', () => {
 		console.log(
 			`${chalk.green('✓')} ${chalk.blue('Server: Connected to MQTT Broker (TLS)')}`
 		)
 
-		// Subscribe to topics for all known devices
+		// Subscribe to data topic for receiving data
 		mqttClient.subscribe(topicData, (err) => {
 			if (err) {
 				console.error(
@@ -162,22 +65,10 @@ export const initMqtt = (io: Server) => {
 			}
 		})
 
-		console.log(chalk.cyan('Starting Weather Forecast Scheduler...'))
-		startWeatherForecastScheduler() // Task2 - HUY QUANG TRUONG
-
-		// TASK 1 - HUY QUANG TRUONG
-		console.log(
-			chalk.cyan('Starting Pump Decision Scheduler (Every 10s)...')
-		)
-		setInterval(() => {
-			evaluateAndPublishPumpDecision().catch((err) => {
-				console.error(
-					`${chalk.red('✗ Server: Scheduled Pump Evaluation Error:')}`,
-					err
-				)
-			})
-		}, 10000)
-		// TASK 1 -  HUY QUANG TRUONG
+		// Listen for weather forecast updates and publish to MQTT
+		WeatherService.onWeatherForcastUpdate((weatherData) => {
+			mqttClient.publish(topicWeather, JSON.stringify(weatherData))
+		})
 	})
 
 	// Handle incoming MQTT messages
@@ -209,10 +100,11 @@ export const initMqtt = (io: Server) => {
 				// Check sensor data and notify users if needed
 				await checkAndNotify(sensorUpdate.sensorData)
 
+				// Evaluate pump decision and publish command if necessary
+				evaluateAndPublishPumpDecision(sensorUpdate.sensorData)
+
 				// Broadcast sensor data to websocket clients
 				broadcastSensorData(io, sensorUpdate)
-
-				// check update state
 			} else if (parsedMessage.hasOwnProperty('enable')) {
 				const deviceStateUpdate = parsedMessage as DeviceStateUpdate
 
@@ -252,105 +144,3 @@ export const publishToDevice = (command: string) => {
 		console.log(`Sent "${command}" to ${topicCommands}`)
 	}
 }
-
-export default null
-
-// //TASK 1 -  HUY QUANG TRUONG
-// export const evaluateAndPublishPumpDecision = async () => {
-// 	try {
-// 		//  Get latest 5 sensor records
-// 		const records = (await SensorRecord.find()
-// 			.sort({ timestamp: -1 })
-// 			.limit(5)
-// 			.lean()
-// 			.exec()) as any[]
-
-// 		// check empty records -> return
-// 		if (!records || records.length === 0) {
-// 			console.log('No sensor records found. Defaulting to NO pump.')
-// 			publishToDevice(JSON.stringify({ action: 'PUMP', enable: false }))
-// 			return
-// 		}
-
-// 		// fillter
-// 		const validRecords = records.filter(
-// 			(r) =>
-// 				r &&
-// 				r.data &&
-// 				typeof r.data.moisture === 'number' &&
-// 				typeof r.data.temperature === 'number' &&
-// 				typeof r.data.humidity === 'number'
-// 		)
-
-// 		if (validRecords.length === 0) return
-
-// 		// avg
-// 		const sumM = validRecords.reduce((a, b) => a + b.data.moisture, 0)
-// 		const sumT = validRecords.reduce((a, b) => a + b.data.temperature, 0)
-// 		const sumH = validRecords.reduce((a, b) => a + b.data.humidity, 0)
-
-// 		const avgMoisture = sumM / validRecords.length
-// 		const avgTemp = sumT / validRecords.length
-// 		const avgHum = sumH / validRecords.length
-// 		const latestMoisture = validRecords[0].data.moisture
-
-// 		console.log(
-// 			chalk.cyan(
-// 				`[Task 1 Analysis] AvgM:${avgMoisture.toFixed(1)}%, AvgT:${avgTemp.toFixed(1)}C | LatestM:${latestMoisture}%`
-// 			)
-// 		)
-
-// 		let moistureThreshold = 40 // auto threshold
-
-// 		if (avgTemp > 30 && avgHum < 60) {
-// 			moistureThreshold = 50
-// 			console.log(
-// 				chalk.yellow(
-// 					'-> Condition: Hot & Dry -> Raised threshold to 50%'
-// 				)
-// 			)
-// 		} else if (avgTemp < 20 || avgHum > 85) {
-// 			moistureThreshold = 30
-// 			console.log(
-// 				chalk.cyan('-> Condition: Cold/Wet -> Lowered threshold to 30%')
-// 			)
-// 		}
-
-// 		const SAFETY_UPPER_LIMIT = 70
-
-// 		// Decision Making
-// 		let shouldPump = false
-
-// 		if (latestMoisture >= SAFETY_UPPER_LIMIT) {
-// 			shouldPump = false
-// 			console.log(
-// 				chalk.magenta(
-// 					`-> Safety Cut-off: Latest moisture (${latestMoisture}%) is high.`
-// 				)
-// 			)
-// 		} else if (avgMoisture <= moistureThreshold) {
-// 			shouldPump = true
-// 			console.log(
-// 				chalk.green(
-// 					`-> Decision: PUMP ON (Avg Moisture ${avgMoisture.toFixed(1)}% <= ${moistureThreshold}%)`
-// 				)
-// 			)
-// 		} else {
-// 			shouldPump = false
-// 			console.log(chalk.gray(`-> Decision: PUMP OFF`))
-// 		}
-
-// 		// Publish command
-// 		const payload = JSON.stringify({
-// 			action: 'PUMP',
-// 			enable: shouldPump,
-// 		})
-// 		publishToDevice(payload)
-// 	} catch (err) {
-// 		console.error(
-// 			`${chalk.red('✗ Server: evaluateAndPublishPumpDecision error:')}`,
-// 			err
-// 		)
-// 	}
-// }
-// //TASK 1 - HUY QUANG TRUONG
