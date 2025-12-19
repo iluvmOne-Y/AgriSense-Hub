@@ -12,6 +12,7 @@ import {
 import { MAX_SENSOR_RECORD_STORE } from 'Shared/Data/Constants/consts_IoT.js'
 
 import { publishToDevice } from './index.js'
+import User from 'Server/Models/User.js'
 import SensorRecord from 'Server/Models/SensorRecord.js'
 import PlantProfile from 'Server/Models/PlantProfile.js'
 import NotificationService from 'Server/Services/NotificationService/index.js'
@@ -442,6 +443,31 @@ export const checkAndNotify = async (sensorData: SensorData) => {
 				warnings,
 				sensorData,
 			})
+
+			const users = await User.find().lean().exec()
+
+			// Notify all users via Email
+			for (const user of users) {
+				if (user.email) {
+					await NotificationService.sendMail(
+						user.email,
+						'Critical Sensor Alert',
+						`<p>Dear ${user.username},</p>
+						<p>The following critical sensor warnings have been detected:</p>
+						<ul>
+							${warnings.map((w) => `<li>${w}</li>`).join('')}
+						</ul>
+						<p>Current Sensor Readings:</p>
+						<ul>
+							<li>Temperature: ${sensorData.temperature}°C</li>
+							<li>Humidity: ${sensorData.humidity}%</li>
+							<li>Soil Moisture: ${sensorData.moisture}%</li>
+						</ul>
+						<p>Please check your system immediately.</p>
+						<p>Best regards,<br/>AgriHub System</p>`
+					)
+				}
+			}
 		}
 	} catch (error) {
 		console.error(
